@@ -24,7 +24,7 @@
 | コマンドは `/plan` の1つだけ | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の期待値 |
 | ショートカットは `ctrl+alt+p` の1つだけ(plan mode のトグル) | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の期待値 |
 | フラグは `plan` の1つだけ | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の期待値 |
-| イベントは `session_start` / `before_agent_start` / `session_compact` の3種で、各1ハンドラ | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の `EXPECTED_EVENTS`、`src/index.ts` |
+| イベントは `session_start` と `before_agent_start` の2種で、各1ハンドラ | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の `EXPECTED_EVENTS`、`src/index.ts` |
 | `tool_call` ハンドラを登録しない(読み取り専用はプロンプトで指示する) | `test/contract/surface.test.ts` | `test/contract/surface.test.ts` の `EXPECTED_EVENTS` |
 
 ### プランファイル
@@ -32,8 +32,8 @@
 | 制約 | 検証 | 定義・実装箇所 |
 |---|---|---|
 | 保存先は `$PI_CODING_AGENT_DIR/plans`、未設定時は `~/.pi/agent/plans` | `test/unit/plans.test.ts` | `src/plans.ts` の `getPlansDirectory` |
-| ファイル名は `<slug>.md` で、slug は形容詞リストと名詞リストから各1語を選んだ2語 | `test/unit/plans.test.ts` | `src/plans.ts` の `generateSlug` |
-| 形容詞リストと名詞リストは空でなく、重複した語を含まない | `test/unit/plans.test.ts` | `src/plans.ts` の `ADJECTIVES` / `NOUNS` |
+| ファイル名は `<slug>.md` で、slug は形容詞・動詞・名詞のリストから各1語を選んだ3語 | `test/unit/plans.test.ts` | `src/plans.ts` の `generateSlug` |
+| 形容詞・動詞・名詞のリストは空でなく、重複した語を含まない | `test/unit/plans.test.ts` | `src/words.ts` の `ADJECTIVES` / `VERBS` / `NOUNS` |
 | slug は初回を含めて最大10回試行し、すべて衝突した場合は最後の slug を使う | `test/unit/plans.test.ts` | `src/plans.ts` の `generateSlug` |
 | slug はセッション単位でキャッシュし、再開では再利用、fork では新規生成する | `test/integration/extension.test.ts` | `src/plans.ts` |
 | プラン本文はファイルだけに保存し、entry には保存しない | `test/integration/extension.test.ts` | `src/plans.ts` |
@@ -50,7 +50,7 @@
 | `/plan <タスク>` は開始と同時にタスクを送る | `test/integration/extension.test.ts` | `src/index.ts` |
 | plan mode 中の `/plan` はプラン本文と保存先を通知表示し、モードを変えない | `test/integration/extension.test.ts` | `src/index.ts` |
 | `--plan` で起動したセッションは開始時に plan mode になる | `test/integration/extension.test.ts` | `src/index.ts` |
-| モード状態と終了済みフラグは `customType: "plan-mode"` の entry に保存し、`session_start` で分岐から復元する | `test/unit/state.test.ts` + `test/integration/extension.test.ts` | `src/state.ts` |
+| モード状態・終了通知の送信待ち・再突入の送信待ちは `customType: "plan-mode"` の entry に保存し、`session_start` で分岐から復元する | `test/unit/state.test.ts` + `test/integration/extension.test.ts` | `src/state.ts` |
 | 復元できない entry・未知の値は plan mode 外として扱い、セッションを止めない | `test/unit/state.test.ts` | `src/state.ts` |
 | plan mode 外で `exit_plan_mode` を呼んでもモードを変えず、エラーを返す | `test/integration/extension.test.ts` | `src/tools.ts` |
 | plan mode 中に `enter_plan_mode` を呼んでもモードを変えず、その旨を返す | `test/integration/extension.test.ts` | `src/tools.ts` |
@@ -64,7 +64,7 @@
 | カウンタは人間のユーザーメッセージだけで進み、meta と tool result では進まない | `test/unit/state.test.ts` | `src/state.ts` |
 | 再突入メッセージは「終了済み」かつ「プランファイルあり」のときだけ1回 | `test/integration/extension.test.ts` | `src/index.ts` |
 | 終了通知は plan mode 終了直後の1回だけ | `test/integration/extension.test.ts` | `src/index.ts` |
-| `session_compact` 後の次リクエストで full を再注入する | `test/integration/extension.test.ts` | `src/index.ts` |
+| compaction より前の注入を数えず、compaction 後の次リクエストで full を再注入する | `test/unit/state.test.ts` | `src/state.ts` |
 | 文面に `EnterPlanMode` / `ExitPlanMode` / `AskUserQuestion` を残さず、`enter_plan_mode` / `exit_plan_mode` と一般的な質問表現にする | `test/unit/prompts.test.ts` | `src/prompts.ts` |
 | プラン承認をテキストや質問ツールで尋ねない指示を含む | `test/unit/prompts.test.ts` | `src/prompts.ts` |
 | 注入メッセージは `display: false` で、`customType` は `plan-mode-context` と `plan-mode-exit` | `test/integration/extension.test.ts` | `src/index.ts` |

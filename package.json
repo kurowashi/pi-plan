@@ -2,28 +2,46 @@
 	"name": "pi-plan",
 	"version": "0.1.0",
 	"description": "Claude Code plan mode for Pi: investigate and plan before coding, then approve in one dialog",
-	"keywords": ["pi-package", "pi", "plan-mode", "plan", "planning", "claude-code"],
+	"keywords": [
+		"pi-package",
+		"pi",
+		"plan-mode",
+		"plan",
+		"planning",
+		"claude-code"
+	],
 	"license": "MIT",
 	"type": "module",
 	"engines": {
 		"node": ">=22.19.0"
 	},
 	"pi": {
-		"extensions": ["./src/index.ts"]
+		"extensions": [
+			"./src/index.ts"
+		]
 	},
-	"files": ["src"],
+	"files": [
+		"src"
+	],
 	"peerDependencies": {
-		"@earendil-works/pi-coding-agent": "*"
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
 	},
 	"peerDependenciesMeta": {
-		"@earendil-works/pi-coding-agent": { "optional": true }
+		"@earendil-works/pi-coding-agent": {
+			"optional": true
+		},
+		"typebox": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.14",
 		"@earendil-works/pi-coding-agent": "0.99.2",
 		"@types/node": "^24.0.0",
 		"lefthook": "2.1.14",
-		"typescript": "7.0.2"
+		"typescript": "7.0.2",
+		"typebox": "1.3.34"
 	},
 	"scripts": {
 		"check": "biome check . && tsc --noEmit",
