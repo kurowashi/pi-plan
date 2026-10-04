@@ -480,3 +480,47 @@ test("fork regenerates the plan slug", (t) => {
 	assert.notEqual(harness.entry()?.slug, "ancient-brewing-phoenix");
 	assert.equal(LAST_STATUS(harness), "⏸ plan mode on");
 });
+
+function countSnapshotEntries(branch: BranchEntry[]): number {
+	return branch.filter((entry) => entry.type === "custom" && entry.customType === PLAN_MODE_ENTRY_TYPE).length;
+}
+
+test("session start restores a pending exit notice and sends it once", (t) => {
+	const harness = createHarness();
+	t.after(() => harness.cleanup());
+	harness.branch.push({
+		type: "custom",
+		customType: PLAN_MODE_ENTRY_TYPE,
+		data: { active: false, exitNoticePending: true, reentryPending: true, slug: "bright-brewing-phoenix" },
+	});
+	harness.start("resume");
+	const message = harness.prompt();
+	assert.equal(message?.customType, EXIT_NOTICE_TYPE);
+	assert.equal(harness.entry()?.exitNoticePending, false);
+	assert.equal(harness.prompt(), undefined, "the exit notice is sent once");
+});
+
+test("/plan with a task while planning queues the task without changing the mode", async (t) => {
+	const harness = createHarness();
+	t.after(() => harness.cleanup());
+	harness.start();
+	await harness.command("");
+	const entriesBefore = countSnapshotEntries(harness.branch);
+	await harness.command("add a verification section");
+	assert.deepEqual(harness.sent, ["add a verification section"]);
+	assert.equal(harness.entry()?.active, true);
+	assert.equal(countSnapshotEntries(harness.branch), entriesBefore, "queueing a task must not rewrite the mode");
+});
+
+test("fork keeps the slug when plan mode is not active", (t) => {
+	const harness = createHarness();
+	t.after(() => harness.cleanup());
+	harness.branch.push({
+		type: "custom",
+		customType: PLAN_MODE_ENTRY_TYPE,
+		data: { active: false, exitNoticePending: false, reentryPending: false, slug: "ancient-brewing-phoenix" },
+	});
+	harness.start("fork");
+	assert.equal(harness.entry()?.slug, "ancient-brewing-phoenix");
+	assert.equal(LAST_STATUS(harness), undefined);
+});

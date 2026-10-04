@@ -35,8 +35,8 @@
 | ファイル名は `<slug>.md` で、slug は形容詞・動詞・名詞のリストから各1語を選んだ3語 | `test/unit/plans.test.ts` | `src/plans.ts` の `generateSlug` |
 | 形容詞・動詞・名詞のリストは空でなく、重複した語を含まない | `test/unit/plans.test.ts` | `src/words.ts` の `ADJECTIVES` / `VERBS` / `NOUNS` |
 | slug は初回を含めて最大10回試行し、すべて衝突した場合は最後の slug を使う | `test/unit/plans.test.ts` | `src/plans.ts` の `generateSlug` |
-| slug はセッション単位でキャッシュし、再開では再利用、fork では新規生成する | `test/integration/extension.test.ts` | `src/plans.ts` |
-| プラン本文はファイルだけに保存し、entry には保存しない | `test/integration/extension.test.ts` | `src/plans.ts` |
+| 再開では snapshot の slug を再利用し、plan mode 中の fork では新規生成する | `test/integration/extension.test.ts` | `src/index.ts` |
+| プラン本文はファイルだけに保存し、entry には保存しない | `test/integration/extension.test.ts` | `src/index.ts` |
 | `exit_plan_mode` は本文を引数で受け取らず、プランファイルから読む | `test/integration/extension.test.ts` | `src/tools.ts` |
 | プランファイルが欠落していても exit でき、空プランとして扱う | `test/integration/extension.test.ts` | `src/tools.ts` |
 | 承認前に編集された場合はファイルへ書き戻し、`edited by user` を tool_result に付ける | `test/integration/extension.test.ts` | `src/tools.ts` |
@@ -50,7 +50,8 @@
 | `/plan <タスク>` は開始と同時にタスクを送る | `test/integration/extension.test.ts` | `src/index.ts` |
 | plan mode 中の `/plan` はプラン本文と保存先を通知表示し、モードを変えない | `test/integration/extension.test.ts` | `src/index.ts` |
 | `--plan` で起動したセッションは開始時に plan mode になる | `test/integration/extension.test.ts` | `src/index.ts` |
-| モード状態・終了通知の送信待ち・再突入の送信待ちは `customType: "plan-mode"` の entry に保存し、`session_start` で分岐から復元する | `test/unit/state.test.ts` + `test/integration/extension.test.ts` | `src/state.ts` |
+| モード・終了通知の送信待ち・再突入の送信待ちは `customType: "plan-mode"` の entry に保存する | `test/integration/extension.test.ts` | `src/index.ts` |
+| 復元は `session_start` で分岐の最後の `plan-mode` entry から行う | `test/unit/state.test.ts` | `src/state.ts` |
 | 復元できない entry・未知の値は plan mode 外として扱い、セッションを止めない | `test/unit/state.test.ts` | `src/state.ts` |
 | plan mode 外で `exit_plan_mode` を呼んでもモードを変えず、エラーを返す | `test/integration/extension.test.ts` | `src/tools.ts` |
 | plan mode 中に `enter_plan_mode` を呼んでもモードを変えず、その旨を返す | `test/integration/extension.test.ts` | `src/tools.ts` |
@@ -67,7 +68,8 @@
 | compaction より前の注入を数えず、compaction 後の次リクエストで full を再注入する | `test/unit/state.test.ts` | `src/state.ts` |
 | 文面に `EnterPlanMode` / `ExitPlanMode` / `AskUserQuestion` を残さず、`enter_plan_mode` / `exit_plan_mode` と一般的な質問表現にする | `test/unit/prompts.test.ts` | `src/prompts.ts` |
 | プラン承認をテキストや質問ツールで尋ねない指示を含む | `test/unit/prompts.test.ts` | `src/prompts.ts` |
-| 注入メッセージは `display: false` で、`customType` は `plan-mode-context` と `plan-mode-exit` | `test/integration/extension.test.ts` | `src/index.ts` |
+| コンテキスト注入は `display: false`、`customType` は `plan-mode-context` | `test/integration/extension.test.ts` | `src/index.ts` |
+| 終了通知は `display: false`、`customType` は `plan-mode-exit` | `test/integration/extension.test.ts` | `src/index.ts` |
 
 ### 承認UI
 
@@ -78,6 +80,7 @@
 | 承認の選択肢は `Yes, execute the plan` / `Edit the plan, then execute` / `No, keep planning` の3つだけ | `test/integration/extension.test.ts` | `src/tools.ts` |
 | `ctx.hasUI` が false のモード(print / JSON)では承認せず、理由を tool_result で返す | `test/integration/extension.test.ts` | `src/tools.ts` |
 | `exit_plan_mode` の承認時、tool_result にプラン全文と保存先をエコーする | `test/integration/extension.test.ts` | `src/tools.ts` |
+| プランが空のときはプラン全文をエコーせず、短い承認文を返す | `test/integration/extension.test.ts` | `src/tools.ts` |
 | 継続時は入力されたフィードバックを tool_result に含める | `test/integration/extension.test.ts` | `src/tools.ts` |
 | ステータスは plan mode 中 `⏸ plan mode on`、それ以外は消す | `test/integration/extension.test.ts` | `src/index.ts` |
 
@@ -146,7 +149,7 @@
 2. 「複数ファイルを変更する機能追加」を依頼し、`enter_plan_mode` の同意 → 調査 → プラン作成 → `exit_plan_mode` の承認 → 実装、の順に進むこと。
 3. 承認ダイアログで「編集して実行」を選び、編集後の内容で実装が始まること。
 4. 「継続」を選び、入力したフィードバックに従ってプランが直ること。
-5. 5ユーザーターンを超えるプランセッションで、`plan-mode-context` が再注入されること(初回は full、以降は sparse)。
-6. セッション再開で slug とモードが復元され、fork では新しい slug になること。
+5. 5ユーザーターンを超えるプランセッションで、`plan-mode-context` が再注入されること(初回と 5 回に 1 回は full、それ以外は sparse)。
+6. セッション再開で slug とモードが復元され、plan mode 中の fork では新しい slug になること。
 7. 自動 compaction の後も `plan-mode-context` が注入されること。
 8. `pi --print` または `pi --mode json` で `exit_plan_mode` が承認されず、理由が返ること。

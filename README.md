@@ -6,6 +6,8 @@ Claude Code の plan mode を Pi の拡張として再現します。plan mode �
 
 ```
 ユーザー: 認証方式を OAuth に変えて
+  assistant: enter_plan_mode を呼ぶ
+  ★ 同意ダイアログ: Yes, enter plan mode / No, start implementing now
   assistant: (read / grep で調査) → プランファイルに実装プランを書く
   assistant: exit_plan_mode を呼ぶ
   ★ 承認ダイアログ: Yes, execute the plan / Edit the plan, then execute / No, keep planning
@@ -41,7 +43,7 @@ pi --extension /path/to/pi-plan/src/index.ts
 | コマンド | `/plan` または `/plan <タスク>`(タスクは開始と同時に送られます) |
 | ショートカット | Ctrl+Alt+P(トグル) |
 | 起動フラグ | `pi --plan` |
-| モデルの提案 | `enter_plan_mode` が同意を求めます。同意すると plan mode に入ります |
+| モデルの提案 | `enter_plan_mode` が同意を求め、`Yes, enter plan mode` で入ります(`No, start implementing now` で拒否) |
 
 plan mode 中はステータス行に `⏸ plan mode on` が表示されます。plan mode 中に引数なしの `/plan` を実行すると、現在のプラン本文と保存先を通知表示します(プランファイルがない場合はその旨を表示します)。
 
@@ -55,18 +57,20 @@ plan mode 中はステータス行に `⏸ plan mode on` が表示されます�
 
 | 経路 | 承認 | 動作 |
 |---|---|---|
-| `exit_plan_mode` の承認 | 必要 | 選んだ内容をモデルへ返し、実装を許可する |
+| `exit_plan_mode` で実行を選ぶ | 必要 | plan mode を終了し、承認済みプラン全文をモデルへ返す |
+| `exit_plan_mode` で編集して実行を選ぶ | 必要 | plan mode を終了し、編集後のプラン全文を返す |
+| `exit_plan_mode` で継続を選ぶ | 選択 | plan mode のまま、フィードバックを返す |
 | Ctrl+Alt+P | 不要 | plan mode を終了する(Claude Code の Shift+Tab に対応) |
 
 承認ダイアログの選択肢は次の 3 つです。
 
 | 選択肢 | 動作 | モデルへの返却 |
 |---|---|---|
-| `Yes, execute the plan` | plan mode を終了する | 承認済みプラン全文 |
+| `Yes, execute the plan` | plan mode を終了する | 承認済みプラン全文(空のときは短い承認文) |
 | `Edit the plan, then execute` | plan mode を終了する | 編集後のプラン全文(`edited by user` を明示) |
 | `No, keep planning` | plan mode のまま | 拒否の事実と入力したフィードバック |
 
-モデルは `exit_plan_mode` 以外で plan mode を終了できません。プラン承認をテキストや質問で求めることは禁止しています。`enter_plan_mode` の同意で拒否した場合も、モードは変わりません。
+モデルは `exit_plan_mode` 以外で plan mode を終了できません。プラン承認をテキストや質問で求めることは禁止しています。
 
 ## プランファイル
 
@@ -74,8 +78,8 @@ plan mode 中はステータス行に `⏸ plan mode on` が表示されます�
 
 - `exit_plan_mode` は本文を引数で受け取らず、ファイルから読みます。
 - 承認前に編集された場合、編集後の内容がモデルへ返り、`edited by user` と明示されます。
-- ファイルが欠落していても承認でき、空のプランとして扱います。
-- セッション再開では同じファイルを再利用し、fork では新しい slug を生成します。
+- ファイルが欠落または空でも承認でき、その場合はプラン全文を返さず短い承認文だけを返します。
+- セッション再開では同じファイルを再利用し、plan mode 中の fork では新しい slug を生成します。
 - プラン本文はセッションには保存しません。
 
 ## Claude Code との差
@@ -97,7 +101,7 @@ plan mode 中はステータス行に `⏸ plan mode on` が表示されます�
 |---|---|
 | プランファイル | `$PI_CODING_AGENT_DIR/plans/` に作成する(未設定時は `~/.pi/agent/plans/`) |
 | セッション | plan mode の状態とプランファイル名を保存する |
-| プロンプト | plan mode 中はユーザーターン 5 回ごとに指示を再注入する(初回と 5 回に 1 回は全文、それ以外は要約。画面には表示されない) |
+| プロンプト | plan mode 中は初回と、以降 5 ユーザーターンごとに指示を再注入する(注入 5 回に 1 回は全文、それ以外は要約。compaction の直後は full からやり直す。画面には表示されない) |
 | ネットワーク | pi-plan 自身は通信しない(Pi 本体とモデルの通信は対象外) |
 
 非対話モード(`pi --print` / `pi --mode json`)では承認ダイアログを出せません。`enter_plan_mode` と `exit_plan_mode` はどちらも承認されず、理由をモデルへ返します。
