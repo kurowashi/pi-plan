@@ -11,14 +11,14 @@ import { Type } from "typebox";
 import { readPlan, writePlan } from "./plans.ts";
 import type { PlanModeSnapshot } from "./state.ts";
 
-export const ENTER_PLAN_MODE_TOOL = "enter_plan_mode";
-export const EXIT_PLAN_MODE_TOOL = "exit_plan_mode";
+const ENTER_PLAN_MODE_TOOL = "enter_plan_mode";
+const EXIT_PLAN_MODE_TOOL = "exit_plan_mode";
 
-export const ENTER_APPROVAL = "Yes, enter plan mode";
-export const DECLINE_ENTRY = "No, start implementing now";
-export const EXECUTE_APPROVAL = "Yes, execute the plan";
-export const EDIT_APPROVAL = "Edit the plan, then execute";
-export const CONTINUE_APPROVAL = "No, keep planning";
+const ENTER_APPROVAL = "Yes, enter plan mode";
+const DECLINE_ENTRY = "No, start implementing now";
+const EXECUTE_APPROVAL = "Yes, execute the plan";
+const EDIT_APPROVAL = "Edit the plan, then execute";
+const CONTINUE_APPROVAL = "No, keep planning";
 
 /** Shared by both tools: approving is impossible without a dialog. */
 const NO_UI_REASON =

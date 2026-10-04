@@ -17,10 +17,10 @@ export const CONTEXT_ENTRY_TYPE = "plan-mode-context";
 export const EXIT_NOTICE_TYPE = "plan-mode-exit";
 
 /** Injects a reminder every five human turns, as Claude Code does. */
-export const TURNS_BETWEEN_INJECTIONS = 5;
+const TURNS_BETWEEN_INJECTIONS = 5;
 
 /** Every fifth reminder repeats the full instructions, as Claude Code does. */
-export const FULL_EVERY_N_INJECTIONS = 5;
+const FULL_EVERY_N_INJECTIONS = 5;
 
 /** The persisted mode state. */
 export interface PlanModeSnapshot {
