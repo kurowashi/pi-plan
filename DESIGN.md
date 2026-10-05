@@ -2,11 +2,49 @@
 
 読者は pi-plan を変更する開発者と AI エージェントです。共通の哲学は [PHILOSOPHY.md](PHILOSOPHY.md)、検証可能な制約と変更手順は [AGENTS.md](AGENTS.md) にあります。
 
-## 何を解くか
+## 目指すべきところ
 
-Claude Code の plan mode を pi の拡張として再現します。plan mode は、実装前に調査し、プランをファイルに書き、ユーザーの承認を得るまでモデルに書き込みを控えさせるモードです。
+対象は Pi のモデルとユーザーです。目的は、実装前に調査し、プランをファイルに書き、ユーザーの承認を得るまでモデルに書き込みを控えさせる plan mode を、pi の拡張として再現することです。判断基準は Claude Code との互換性で、互換性を優先し、pi の制約で再現できない差だけを許容して差をこの文書にすべて記録します。
 
-判断基準は Claude Code との互換性です。互換性を優先し、pi の制約で再現できない差だけを許容します。差はこの文書にすべて記録します。対応の基準は逆コンパイル済み Claude Code v2.1.88 で、参照元は [collection-claude-code-source-code](https://github.com/chauncygu/collection-claude-code-source-code) の `original-source-code` です。参照する主な箇所は `src/utils/messages.ts`(プロンプト)、`src/utils/plans.ts`(プランファイル)、`src/utils/permissions/permissionSetup.ts`(モード遷移)です。
+対応の基準は逆コンパイル済み Claude Code v2.1.88 で、参照元は [collection-claude-code-source-code](https://github.com/chauncygu/collection-claude-code-source-code) の `original-source-code` です。参照する主な箇所は `src/utils/messages.ts`(プロンプト)、`src/utils/plans.ts`(プランファイル)、`src/utils/permissions/permissionSetup.ts`(モード遷移)です。
+
+### 達成状態
+
+| 状態 | 観測方法 |
+|---|---|
+| 実装前に調査してプランを立てられる | `/plan <タスク>` で入り、`⏸ plan mode on` が出て、調査結果がプランファイルに書かれる |
+| 承認してから実装に進める | `exit_plan_mode` の承認で、実行なら承認済みプラン全文、編集して実行なら `edited by user` 付きの全文が返る |
+| モデルが単独で plan mode を終了できない | plan mode 中の出口が `exit_plan_mode` の承認だけになる |
+| 承認前はプラン以外へ書き込まない | plan mode 中のプロンプトが読み取り専用を指示し、プランファイル以外への `write` / `edit` が行われない |
+| ユーザーが承認なしに終了できる | Ctrl+Alt+P で `⏸ plan mode on` が消え、終了通知が 1 回注入される |
+| 長いセッションでも指示が薄れない | セッション記録に `plan-mode-context` が 5 ユーザーターンごとと compaction 後に現れる |
+| 再開しても plan mode とプランが続く | 再開時にモードと slug が復元され、同じプランファイルを再利用する |
+
+### 最小の成立条件
+
+| 成立条件 | 達成する状態 |
+|---|---|
+| `enter_plan_mode` / `exit_plan_mode` の 2 ツールと、同意・実行・編集・継続の承認 UI | 実装前に調査してプランを立てられる。承認してから実装に進める。モデルが単独で plan mode を終了できない |
+| プランファイル(`<slug>.md`)を本文の正とし、`exit_plan_mode` がファイルから読む | 承認してから実装に進める |
+| 読み取り専用を指示するプロンプト注入と、5 ユーザーターンごと・compaction 後の再注入 | 承認前はプラン以外へ書き込まない。長いセッションでも指示が薄れない |
+| `plan-mode` entry へのモードと送信待ちの保存、`session_start` での復元、slug の再利用 | 再開しても plan mode とプランが続く |
+| Ctrl+Alt+P のトグル | ユーザーが承認なしに終了できる |
+
+### 非目標
+
+固有の原則の具体例です。提案時に最初に確認します。
+
+- pi への権限モードの導入(plan 状態は拡張内の状態として管理する)
+- 権限プロンプト機構の再実装
+- 読み取り専用の技術的な強制(ブロック、確認ダイアログ、Bash 許可リスト)
+- plan mode の自動タイムアウトや自動終了
+- 非対話モードでの承認(必ずブロックし、理由をモデルへ返す)
+- プラン本文の entry 保存(ファイルだけに保存する)
+- ユーザー承認なしの `exit_plan_mode` 通過
+
+### 拡張の条件
+
+最小の成立条件を超える機能は、最小構成には含めません。現在の設計に含まれるものも今後の追加も、達成状態への寄与を実測で示せるときだけ維持・追加します。実測で寄与が示せない機能は削除の候補とします。
 
 ## 要点
 
@@ -208,15 +246,3 @@ pi に標準の質問ツールはないため、Claude Code の `AskUserQuestion
 - `allowedPrompts`(Ant 社内限定)による意味的権限要求
 - サブエージェント専用の plan file
 - Phase 4 の A/B バリアント(trim/cut/cap)
-
-## 意図的にやらないこと
-
-固有の原則の具体例です。提案時に最初に確認します。
-
-- pi への権限モードの導入(plan 状態は拡張内の状態として管理する)
-- 権限プロンプト機構の再実装
-- 読み取り専用の技術的な強制(ブロック、確認ダイアログ、Bash 許可リスト)
-- plan mode の自動タイムアウトや自動終了
-- 非対話モードでの承認(必ずブロックし、理由をモデルへ返す)
-- プラン本文の entry 保存(ファイルだけに保存する)
-- ユーザー承認なしの `exit_plan_mode` 通過
